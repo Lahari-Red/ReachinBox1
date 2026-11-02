@@ -1,0 +1,63 @@
+# Render Blueprint — New → Blueprint → pick this repo.
+# Creates: API (+ in-process BullMQ worker), Redis (Key Value), Postgres.
+services:
+  - type: web
+    name: reachinbox-api
+    runtime: node
+    rootDir: backend
+    plan: starter            # free plan sleeps after 15 min idle, which would pause scheduled sends
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: reachinbox-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: reachinbox-redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RUN_WORKER_IN_API_PROCESS
+        value: "true"
+      - key: WORKER_CONCURRENCY
+        value: "5"
+      - key: MIN_DELAY_BETWEEN_EMAILS_MS
+        value: "2000"
+      - key: MAX_EMAILS_PER_HOUR_PER_SENDER
+        value: "200"
+      - key: ETHEREAL_SENDER_COUNT
+        value: "3"
+      # Fill these in the Render dashboard after the first deploy:
+      - key: BACKEND_URL          # e.g. https://reachinbox-api.onrender.com
+        sync: false
+      - key: FRONTEND_URL         # e.g. https://reachinbox-scheduler.vercel.app
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SLACK_REDIRECT_URI   # https://reachinbox-api.onrender.com/api/slack/callback
+        sync: false
+      - key: ELASTICSEARCH_URL    # Bonsai / Elastic Cloud URL incl. credentials
+        sync: false
+      - key: BULL_BOARD_USER
+        sync: false
+      - key: BULL_BOARD_PASSWORD
+        sync: false
+
+  - type: keyvalue
+    name: reachinbox-redis
+    plan: starter            # paid tiers persist to disk; free Key Value loses jobs on restart
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  - name: reachinbox-db
+    plan: basic-256mb
+    databaseName: reachinbox
